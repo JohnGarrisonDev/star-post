@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { LEVELS } from '../src/levels.js'
-import { defaults, sanitize, levelKey, starsFor, isOpen, frontier, recordDock, dailyLaunch, dailyFlight, liveStreak, prevDate, dateStr, shareText, recentDays, totalStars } from '../src/save.js'
+import { defaults, sanitize, levelKey, levelRev, starsFor, isOpen, frontier, recordDock, dailyLaunch, dailyFlight, liveStreak, prevDate, dateStr, shareText, recentDays, totalStars } from '../src/save.js'
 
 const K = (i) => levelKey(LEVELS[i])
 
@@ -41,9 +41,24 @@ test('unlocking: clear a level to open the next, and one level may always be ski
 test('recordDock keeps the best stars and the best time, and a full delivery beats a faster empty one', () => {
   const d = defaults(), l = LEVELS[2]
   let r = recordDock(d, l, 0, 2.0); assert.equal(r.stars, 1); assert.equal(r.newBest, false)
-  r = recordDock(d, l, 1, 9.0); assert.equal(r.stars, 2); assert.ok(r.newBest); assert.deepEqual(d.best[K(2)], { t: 9, full: true })
+  r = recordDock(d, l, 1, 9.0); assert.equal(r.stars, 2); assert.ok(r.newBest); assert.deepEqual({ t: d.best[K(2)].t, full: d.best[K(2)].full }, { t: 9, full: true })
   r = recordDock(d, l, 0, 1.5); assert.equal(d.stars[K(2)], 2); assert.equal(d.best[K(2)].t, 9)
   r = recordDock(d, l, 1, l.par - 0.5); assert.equal(r.stars, 3); assert.ok(r.newStars); assert.equal(d.best[K(2)].t, l.par - 0.5)
+})
+
+test('a retuned level (rev) keeps its stars but forgets a best time set on the old layout', () => {
+  const old = { name: 'Retuned', rings: [[1, 1]], par: 5 }, now = { ...old, rev: 2 }
+  assert.equal(levelRev(old), 1); assert.equal(levelRev(now), 2)
+  const saved = { stars: { retuned: 3 }, best: { retuned: { t: 1.2, full: true } } }
+  const d = sanitize(saved, [now])
+  assert.equal(d.stars.retuned, 3, 'stars survive the retune')
+  assert.equal(d.best.retuned, undefined, 'the old best time is dropped')
+  assert.deepEqual(sanitize(saved, [old]).best.retuned, { t: 1.2, full: true }, 'an untouched level keeps its best')
+  const r = recordDock(d, now, 1, 4.5)
+  assert.equal(r.newBest, false); assert.deepEqual(d.best.retuned, { t: 4.5, full: true, r: 2 })
+  assert.deepEqual(sanitize(JSON.parse(JSON.stringify(d)), [now]).best.retuned, { t: 4.5, full: true, r: 2 }, 'a new-layout best survives a reload')
+  const stale = defaults(); stale.best.retuned = { t: 1, full: true }
+  recordDock(stale, now, 1, 4); assert.deepEqual(stale.best.retuned, { t: 4, full: true, r: 2 }, 'an in-memory stale best is replaced, not compared')
 })
 
 test('daily: launches count until solved, streaks need consecutive days', () => {

@@ -49,10 +49,57 @@ Save data is keyed by a slug of the level name (`levelKey`), so renaming a level
 5. Run the tests. `tests/levels.test.js` prints the window table and enforces the bands.
 
 ## Balance
-"Window" = how much of the 360 x 90 aim space wins, in degree x power units (whole space 32400), on a 1 degree x 2 power grid. Bands enforced by the tests: full-delivery window at least 6 / 4 / 2 for sectors 1 / 2 / 3 and at most 250 / 200 / 150 for levels with letters; dock window at least 20. Current values are in the test output. Typical full windows: sector 1 6-134, sector 2 4-102, sector 3 4-94 (medians 26, 29, 17). Windows alone do not narrow steadily; difficulty also comes from the preview shrinking (5 s down to 1 s) and from moving parts. Ring radius is 34 in sector 1, 30 in sector 2, 28 in sector 3 (bigger on the three fiddliest levels); widen a ring or the dock (`dockR`) to ease a level.
+"Window" = how much of the 360 x 90 aim space wins, in degree x power units (whole space 32400), on a 1 degree x 2 power grid. Bands enforced by `tests/levels.test.js` since 1.1.0:
+- Full-delivery window at least **24 / 14 / 12** for sectors 1 / 2 / 3, and at most 250 / 200 / 150 for levels with letters (no gifts).
+- Dock window at least **60** everywhere (one star should never take care).
+- Sector medians of the full window must strictly fall (now 45, 31, 21; were 26, 29, 17).
+- The stored `sol` must sit in a pocket: its `localWindow` full window (0.2 degree x 0.5 power cells, +-6 degrees x +-8 power) at least 2.5. Several 1.0 sols were knife edges (0.4-1.8).
+- Headline bodies must matter: removing Rebound's top moon or planet leaves at most 60% of the full window; removing Bank Shot's moon or planet, or Push and Pull's star or planet, at most 25%.
+
+Why these floors: 12 units is 6 cells of the 1 degree x 2 power grid, a patch of roughly 2 degrees x 6 power. The nudge buttons move 0.5 degrees and 0.5 power (keyboard fine aim 0.1 degrees), so even the tightest sector 3 level has several nudge steps of slack around a winning line, and the preview (1.2 s or more) shows you are on it. Below about 8 units the old levels needed sub-nudge precision. Sector 1 starts at twice that, sector 2 in between; Bulk Mail is the one sector 2 level that only reached 14 (see weak spots).
+
+### Before / after (1.1.0 retune)
+| # | Level | Dock before | Dock after | Full before | Full after | Par before | Par after | What changed |
+|---|---|---|---|---|---|---|---|---|
+| 1 | First Class | 554 | 554 | 554 | 554 | 3.5 | 3.5 | - |
+| 2 | Round the Bend | 176 | 176 | 176 | 176 | 3.5 | 3.5 | - |
+| 3 | First Post | 158 | 160 | 28 | 70 | 4 | 3.5 | ring moved onto the bend; it is the first letter in the game |
+| 4 | Back Door | 518 | 518 | 134 | 134 | 3 | 3 | - |
+| 5 | Return to Sender | 1764 | 2154 | 16 | 38 | 6.5 | 6 | planet nudged and heavier (9.5), ring 38, dock moved, dockR 44 |
+| 6 | Loop the Loop | 1620 | 1620 | 28 | 44 | 6 | 6 | ring moved |
+| 7 | Mind the Gravel | 26 | 80 | 24 | 46 | 5 | 4.5 | planet moved down and heavier (7.8), ring and dock moved |
+| 8 | Slalom | 158 | 182 | 14 | 26 | 5 | 4.5 | second planet nudged, rings and dock moved, dockR 40 |
+| 9 | Threading | 124 | 134 | 18 | 38 | 4.5 | 3 | planets nudged (first one 5.2), second ring 36, dock moved |
+| 10 | Special Delivery | 2878 | 2718 | 6 | 26 | 6.5 | 8 | planets nudged (middle 6.5), rings moved, last ring 36, dock moved, dockR 46 |
+| 11 | Boing | 92 | 92 | 92 | 92 | 4.5 | 4.5 | - |
+| 12 | Rebound | 2132 | 1644 | 102 | 46 | 3.5 | 3 | planet moved and heavier (6) so it matters; ring and dock moved |
+| 13 | Express Lane | 474 | 354 | 14 | 30 | 4 | 4 | ring and dock moved |
+| 14 | Tailwind | 46 | 80 | 32 | 32 | 5 | 4.5 | rings and dock moved, dockR 42 |
+| 15 | Puff School | 1044 | 1044 | 26 | 26 | 5 | 5 | - |
+| 16 | Bank Shot | 644 | 722 | 82 | 46 | 4 | 4 | ring and dock moved so the planet is needed |
+| 17 | Rubber Room | 764 | 764 | 92 | 92 | 5 | 5 | - |
+| 18 | Scrapyard | 2214 | 2050 | 6 | 26 | 6.5 | 6.5 | planet nudged and heavier (9.5), first ring 36, dock moved |
+| 19 | By the Numbers | 3526 | 3448 | 12 | 20 | 5.5 | 5.5 | ring 2 bigger (36), dock moved, dockR 36 |
+| 20 | Bulk Mail | 260 | 512 | 4 | 14 | 5 | 4.5 | moon bigger (r 100), first planet lighter (4.5), small planet nudged and r 40 / m 4.5, rings and dock moved, dockR 36, preview 1.8 |
+| 21 | Moving Day | 166 | 166 | 28 | 28 | 5 | 5 | - |
+| 22 | Moonlighting | 1586 | 1680 | 12 | 20 | 6.5 | 6 | rings and dock moved |
+| 23 | Shortcut | 100 | 100 | 78 | 78 | 4 | 4 | - |
+| 24 | In One Ear | 20 | 484 | 12 | 20 | 4.5 | 4 | rings and dock moved |
+| 25 | Shove | 424 | 424 | 94 | 94 | 4 | 4 | - |
+| 26 | Push and Pull | 1124 | 1172 | 78 | 40 | 4 | 6 | planet moved in (619, 466) and lighter (5.5), rings and dock moved: the route now swings round it |
+| 27 | Clockwork | 254 | 254 | 22 | 22 | 7 | 7 | - |
+| 28 | Night Shift | 1092 | 1180 | 4 | 14 | 7.5 | 7 | rings and dock moved, preview 1.2 |
+| 29 | The Long Way Round | 1702 | 1698 | 10 | 14 | 7 | 5.5 | rings and dock moved, last ring 40, dockR 42, preview 1.2 |
+| 30 | Last Post | 242 | 324 | 4 | 16 | 7.5 | 6 | rings and dock moved, middle ring 42, preview 1.2 |
+
+Retuned levels carry `rev: 2`. Save data stores the rev with a best time (`best[key].r`, only when > 1); on load a best from another rev is dropped and the stars are kept, so a retune never leaves a meaningless best time beside a new par. Bump `rev` again if you change a level's layout.
+
+How it was tuned: rings and the dock never change a trajectory (only the dock ends one), so a scratch tool flew every launch on the test grid once, cached the paths, and annealed ring/dock positions and sizes (and, for the hardest levels, small planet moves and mass changes, re-flying after each) towards a target window, then re-checked everything with the real `search`. `sol` was then picked as the full launch with the biggest local window, and par recomputed with the rule below.
+
+- Difficulty also comes from the preview shrinking (5 s down to 1.2 s) and from moving parts. Ring radius is 34 in sector 1, 30 in sector 2, 28 in sector 3, bigger where a level needed it; widen a ring or the dock (`dockR`) to ease a level.
 - Par = the smaller of (designer route x 1.08 + 0.2) and (fastest full line x 1.5 + 0.5), rounded up to 0.5 s. So three stars always exist but sometimes need a quicker line than the obvious one.
 - Every level's full delivery is proven without puffs; puffs (sector 2 level 5 onwards) are a correction tool, never required. `searchWithPuff` exists in the solver if you want a level that needs one.
-- The dock is usually easy to reach on its own (1 star) and the letters are the puzzle. Levels 7, 14, 24 have small dock windows (20-46): candidates for easing.
+- Remaining weak spots: Bulk Mail (14) is below the rest of sector 2 because the moon bounce after a planet hook is chaotic; Night Shift, The Long Way Round and Last Post sit at 14-16; Last Post's best single line has a local window of only 2.7; Rebound's two rubber moons are each needed by only about a third to a half of winning launches. None of this has been playtested by a person.
 - Unlocking: a level is open if either of the two before it has a star, so one level can always be skipped.
 
 ## Daily delivery (src/daily.js)

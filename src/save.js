@@ -2,7 +2,8 @@
 // Shape (all under localStorage "oddvale:star-post"):
 //   v: 1
 //   stars:  { [levelKey]: 1..3 }
-//   best:   { [levelKey]: { t: seconds of the best full delivery (or best docking if never full), full: bool } }
+//   best:   { [levelKey]: { t: seconds of the best full delivery (or best docking if never full), full: bool, r?: level rev } }
+//           r is only written for retuned levels (rev > 1); a best from another rev is dropped on load (stars are kept)
 //   aims:   { [levelKey | 'daily']: [a10, p10] }   last aim per level, so a reload resumes where you were
 //   cur:    { kind: 'campaign'|'daily', i }        what was being played (resume on reload), or null
 //   daily:  { [date]: { tries, done, launch, t, letters } }
@@ -12,6 +13,9 @@ import { P_MIN, P_MAX } from './physics.js'
 export const SLUG = 'star-post'
 export const defaults = () => ({ v: 1, stars: {}, best: {}, aims: {}, cur: null, daily: {}, streak: 0, bestStreak: 0, lastDaily: null, launches: 0 })
 export const levelKey = (lvl) => lvl.id || lvl.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
+/** Layout revision of a level (1 unless it was retuned). Best times remember it; stars do not need to. */
+export const levelRev = (lvl) => lvl.rev || 1
+const bestEntry = (t, full, r) => (r > 1 ? { t: Math.round(t * 100) / 100, full, r } : { t: Math.round(t * 100) / 100, full })
 
 const isObj = (o) => !!o && typeof o === 'object' && !Array.isArray(o)
 const int = (v, lo, hi, d) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.round(v))) : d)
@@ -21,11 +25,12 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/
 export function sanitize(raw, levels) {
   const d = defaults()
   if (!isObj(raw)) return d
-  const keys = new Set(levels.map(levelKey))
+  const keys = new Set(levels.map(levelKey)), revByKey = new Map(levels.map((l) => [levelKey(l), levelRev(l)]))
   if (isObj(raw.stars)) for (const k of Object.keys(raw.stars)) if (keys.has(k)) { const n = int(raw.stars[k], 0, 3, 0); if (n) d.stars[k] = n }
   if (isObj(raw.best)) for (const k of Object.keys(raw.best)) {
     const b = raw.best[k]
-    if (keys.has(k) && isObj(b) && Number.isFinite(b.t) && b.t > 0 && b.t < 1000) d.best[k] = { t: Math.round(b.t * 100) / 100, full: !!b.full }
+    // A best time set on an older layout of a retuned level (different rev) no longer means anything: drop it. Stars stay.
+    if (keys.has(k) && isObj(b) && Number.isFinite(b.t) && b.t > 0 && b.t < 1000 && (b.r || 1) === revByKey.get(k)) d.best[k] = bestEntry(b.t, !!b.full, b.r || 1)
   }
   if (isObj(raw.aims)) for (const k of Object.keys(raw.aims)) {
     const a = raw.aims[k]
@@ -71,9 +76,9 @@ export function frontier(data, levels) {
 /** Record a docking. Returns { stars, newStars, newBest }. */
 export function recordDock(data, lvl, nGot, tSec) {
   const k = levelKey(lvl), stars = starsFor(lvl, nGot, tSec), full = nGot >= (lvl.rings || []).length
-  const old = data.stars[k] || 0, b = data.best[k]
+  const old = data.stars[k] || 0, rev = levelRev(lvl), b = data.best[k] && (data.best[k].r || 1) === rev ? data.best[k] : null
   const improved = !b || (full && !b.full) || (full === b.full && tSec < b.t)
-  if (improved) data.best[k] = { t: Math.round(tSec * 100) / 100, full }
+  if (improved) data.best[k] = bestEntry(tSec, full, rev)
   if (stars > old) data.stars[k] = stars
   return { stars, newStars: stars > old, newBest: improved && !!b, best: data.best[k] }
 }
