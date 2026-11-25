@@ -7,6 +7,7 @@ import { generateDaily } from './daily.js'
 import { createRenderer, colIndex } from './render.js'
 import { createUI } from './ui.js'
 import { audio } from './audio.js'
+import { dailyTalk, tellUs } from '../kit/talk.js'
 import { SLUG, defaults, sanitize, levelKey, starRule, fmtT, isOpen, totalStars, frontier, recordDock, dateStr, dailyRec, dailyLaunch, dailyFlight, liveStreak, recentDays, shareText } from './save.js'
 
 const stage = document.getElementById('stage'), canvas = document.getElementById('game')
@@ -157,7 +158,11 @@ function showResult(res, t, f) {
   for (let k = 0; k < res.stars; k++) setTimeout(() => audio.star(k), 250 + k * 140)
 }
 function showDailyDone(fresh) {
-  ui.dailyDone({ date: G.date, name: G.lvl.name, rec: dailyRec(data, G.date), total: G.comp.rings.length, streak: liveStreak(data, G.date), bestStreak: data.bestStreak, days: recentDays(data, G.date), fresh })
+  const rec = dailyRec(data, G.date)
+  const talkEl = ui.dailyDone({ date: G.date, name: G.lvl.name, rec, total: G.comp.rings.length, streak: liveStreak(data, G.date), bestStreak: data.bestStreak, days: recentDays(data, G.date), fresh })
+  // Anonymous difficulty vote and "you beat N%". Score follows the daily's own ranking: fewest launches, ties to the
+  // shorter flight, so launches x 1000 + flight time in tenths (lower is better; flights end by 40 s).
+  dailyTalk(talkEl, { game: 'star-post', key: G.date, score: Math.min(999, rec.launch) * 1000 + Math.min(999, Math.round(rec.t * 10)), compact: true })
 }
 
 // ---------- title and menus
@@ -316,6 +321,7 @@ if (typeof ResizeObserver === 'function') new ResizeObserver(() => R.resize()).o
 document.addEventListener('fullscreenchange', () => R.resize())
 
 wireChrome({ stage })
+tellUs(document.getElementById('tell-us'), { game: 'star-post', issueUrl: 'https://github.com/JohnGarrisonDev/star-post/issues/new?template=feedback.yml' })
 R.resize()
 if (data.cur && (data.cur.kind === 'daily' || isOpen(data, LEVELS, data.cur.i))) { loadLevel(data.cur.kind, data.cur.i); if (G.kind === 'daily' && dailyRec(data, G.date).done) showDailyDone(false) } else showTitle()
 requestAnimationFrame((t) => { lastT = t; frame(t) })

@@ -108,6 +108,9 @@ How it was tuned: rings and the dock never change a trajectory (only the dock en
 - Score: launches until the first full delivery (then flight time). After that the day is free play and the record never changes. Streak = consecutive finished days.
 - **Snapshot rule:** `tests/daily.test.js` pins the layout hash of four dates. Any change to daily.js, to physics.js constants or maths, or to the kit rng changes everyone's daily. Do not update the hashes casually; if you must, say so in CHANGELOG.md and never mid-day for a date that is already live.
 
+## Player input (`kit/talk.js`)
+The hub's anonymous player-input widgets (copy of the kit, do not edit). `showDailyDone` calls `dailyTalk` into the `[data-talk]` slot `ui.dailyDone` returns, with `key` = the daily's date and `score` = `launch * 1000 + flight tenths` (both capped at 999), so lower is better and ties on launches go to the quicker flight, the same order as the daily's own rule. API board `delivery`, the default. Boot calls `tellUs` into `#tell-us`. Both stay hidden when the API (`/api/v1/`) is unreachable.
+
 ## Testing in a browser
 `?debug` exposes `window.__game`: `advance(seconds)` steps the game clock without animation frames, `goto(i)`, `daily()`, `aim(a10, p10)`, `solve()` (aims the full-delivery launch), `launch()`, `retry()`, `puff(dx, dy)`, `act(name, arg)` (same as pressing a UI button), `state()`.
 

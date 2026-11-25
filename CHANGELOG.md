@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.2.0 (2026-11-25)
+- Tell us how hard today's Daily delivery was with one tap, and see how you did against everyone else today (fewest launches, then the quicker flight). Anonymous: nothing about you is stored.
+- A new "Tell us" card under the game: thumbs up or down and a few one-tap notes, no account needed.
+- A Privacy link in the footer.
+
 ## 1.1.0 (2026-11-24)
 A fairness pass on the campaign. The systems now get harder steadily from sector to sector, and no system needs a pixel-perfect launch any more.
 - The tightest systems are kinder: Special Delivery, Scrapyard, Bulk Mail, Night Shift and Last Post have more room to post every letter, and Mind the Gravel, Tailwind and In One Ear are easier to dock in.

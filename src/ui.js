@@ -158,7 +158,9 @@ export function createUI(stage, { onAction, onNudge, onFast }) {
           ${btn('copy', 'Copy result', 'primary')}
           ${btn('resume', 'Keep flying <small>for fun</small>')}
           ${btn('title', 'Back to title', 'small')}
-        </div>`)
+        </div>
+        <div data-talk></div>`)
+      return overlay.querySelector('[data-talk]')
     },
     copied(ok) { const c = overlay.querySelector('[data-act="copy"]'); if (c) c.textContent = ok ? 'Copied!' : 'Could not copy' },
   }
