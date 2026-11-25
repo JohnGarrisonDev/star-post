@@ -48,7 +48,8 @@ export function createRenderer(canvas) {
     let x0 = -10, x1 = FIELD.w + 10, y0 = -10, y1 = FIELD.h + 10
     if (focus) { const m = 70; x0 = Math.max(-900, Math.min(x0, focus.x - m)); x1 = Math.min(FIELD.w + 900, Math.max(x1, focus.x + m)); y0 = Math.max(-900, Math.min(y0, focus.y - m)); y1 = Math.min(FIELD.h + 900, Math.max(y1, focus.y + m)) }
     const fw = x1 - x0, fh = y1 - y0
-    cam.ts = cam.rot ? Math.min(aw / fh, ah / fw) : Math.min(aw / fw, ah / fh)
+    // Never let the scale reach zero or go negative (a hidden or collapsed stage is 1px tall), or canvas arcs throw.
+    cam.ts = Math.max(0.01, cam.rot ? Math.min(aw / fh, ah / fw) : Math.min(aw / fw, ah / fh))
     cam.tfx = (x0 + x1) / 2; cam.tfy = (y0 + y1) / 2
     if (cam.snap) { cam.s = cam.ts; cam.fx = cam.tfx; cam.fy = cam.tfy; cam.snap = false }
   }

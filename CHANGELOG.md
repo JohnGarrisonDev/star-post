@@ -1,5 +1,8 @@
 # Changelog
 
+## 1.0.1 (2026-11-24)
+- Fixed a drawing error that could spam the console when the game area was hidden or collapsed.
+
 ## 1.0.0 (2026-11-24)
 The orbital post office opens.
 - One launch, then gravity: pull back, let go, and curve round planets through mailbox rings to the dock.
