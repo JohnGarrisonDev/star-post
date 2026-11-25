@@ -8,6 +8,8 @@
     "Physics"
   ],
   "daily": true,
+  "difficulty": 4,
+  "difficultyNote": "Reaching the dock is fair. Posting every letter in later sectors needs very precise launches.",
   "verb": "Sling",
   "tone": "ink",
   "players": "1 player",
