@@ -1,0 +1,20 @@
+{
+  "slug": "star-post",
+  "title": "Star Post",
+  "tagline": "One launch. Gravity does the rest.",
+  "description": "Oddvale’s post office has gone orbital. Pull back, let go, and watch gravity bend your odd little robot courier round planets, through every floating mailbox and into the dock. 30 hand-built systems of rubber moons, boost gates, wormholes and wandering planets, plus a new Daily delivery for everyone each day.",
+  "genre": "Gravity physics",
+  "kinds": ["Physics"],
+  "daily": true,
+  "verb": "Sling",
+  "tone": "ink",
+  "players": "1 player",
+  "session": "5–15 min, or one daily",
+  "controls": ["Keyboard", "Mouse", "Touch"],
+  "version": "1.0.0",
+  "released": "2026-11-24",
+  "updated": "2026-11-24",
+  "repo": "https://github.com/JohnGarrisonDev/star-post",
+  "cover": "cover.webp",
+  "coverAlt": "Illustration: an odd little robot in a tiny rocket capsule loops around colourful planets on a long dotted curving path, posting letters into floating mailboxes on the way to a space post office."
+}
