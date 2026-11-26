@@ -4,6 +4,7 @@
 //   stars:  { [levelKey]: 1..3 }
 //   best:   { [levelKey]: { t: seconds of the best full delivery (or best docking if never full), full: bool, r?: level rev } }
 //           r is only written for retuned levels (rev > 1); a best from another rev is dropped on load (stars are kept)
+//           g?: [a10, p10, n, dx, dy, n, dx, dy, ...] the launch and puffs of that run, replayed as the "best ghost" (1.4.0)
 //   aims:   { [levelKey | 'daily']: [a10, p10] }   last aim per level, so a reload resumes where you were
 //   cur:    { kind: 'campaign'|'daily', i }        what was being played (resume on reload), or null
 //   daily:  { [date]: { tries, done, launch, t, letters } }
@@ -15,7 +16,18 @@ export const defaults = () => ({ v: 1, stars: {}, best: {}, aims: {}, cur: null,
 export const levelKey = (lvl) => lvl.id || lvl.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')
 /** Layout revision of a level (1 unless it was retuned). Best times remember it; stars do not need to. */
 export const levelRev = (lvl) => lvl.rev || 1
-const bestEntry = (t, full, r) => (r > 1 ? { t: Math.round(t * 100) / 100, full, r } : { t: Math.round(t * 100) / 100, full })
+const bestEntry = (t, full, r, g) => {
+  const e = r > 1 ? { t: Math.round(t * 100) / 100, full, r } : { t: Math.round(t * 100) / 100, full }
+  if (g) e.g = g
+  return e
+}
+/** A stored ghost run: [a10, p10] then [n, dx, dy] per puff. Anything else is dropped (null). */
+export function cleanGhost(g) {
+  if (!Array.isArray(g) || g.length < 2 || g.length > 2 + 3 * 12 || (g.length - 2) % 3 !== 0 || !g.every(Number.isFinite)) return null
+  if (g[0] < 0 || g[0] > 3599 || g[1] < P_MIN || g[1] > P_MAX) return null
+  for (let i = 2; i < g.length; i += 3) if (g[i] < 0 || g[i] > 1e5 || (i > 2 && g[i] < g[i - 3])) return null
+  return g.slice()
+}
 
 const isObj = (o) => !!o && typeof o === 'object' && !Array.isArray(o)
 const int = (v, lo, hi, d) => (Number.isFinite(v) ? Math.max(lo, Math.min(hi, Math.round(v))) : d)
@@ -30,7 +42,7 @@ export function sanitize(raw, levels) {
   if (isObj(raw.best)) for (const k of Object.keys(raw.best)) {
     const b = raw.best[k]
     // A best time set on an older layout of a retuned level (different rev) no longer means anything: drop it. Stars stay.
-    if (keys.has(k) && isObj(b) && Number.isFinite(b.t) && b.t > 0 && b.t < 1000 && (b.r || 1) === revByKey.get(k)) d.best[k] = bestEntry(b.t, !!b.full, b.r || 1)
+    if (keys.has(k) && isObj(b) && Number.isFinite(b.t) && b.t > 0 && b.t < 1000 && (b.r || 1) === revByKey.get(k)) d.best[k] = bestEntry(b.t, !!b.full, b.r || 1, cleanGhost(b.g))
   }
   if (isObj(raw.aims)) for (const k of Object.keys(raw.aims)) {
     const a = raw.aims[k]
@@ -73,14 +85,21 @@ export function frontier(data, levels) {
   return levels.length - 1
 }
 
-/** Record a docking. Returns { stars, newStars, newBest }. */
-export function recordDock(data, lvl, nGot, tSec) {
+/**
+ * Record a docking. Returns { stars, newStars, newBest, improved } (improved = this run is now the best, first one included). ghost = [a10, p10, ...puffs] of this run: it is kept with a
+ * new best, and also given to a best from before 1.4.0 that has none yet, by a run of the same kind (full or not) within 10% of its time.
+ */
+export function recordDock(data, lvl, nGot, tSec, ghost = null) {
   const k = levelKey(lvl), stars = starsFor(lvl, nGot, tSec), full = nGot >= (lvl.rings || []).length
   const old = data.stars[k] || 0, rev = levelRev(lvl), b = data.best[k] && (data.best[k].r || 1) === rev ? data.best[k] : null
   const improved = !b || (full && !b.full) || (full === b.full && tSec < b.t)
-  if (improved) data.best[k] = bestEntry(tSec, full, rev)
+  const g = cleanGhost(ghost)
+  if (improved) data.best[k] = bestEntry(tSec, full, rev, g)
+  // a pre-1.4.0 best has no ghost: adopt one only from a run of the same kind within 10% of the best time, so
+  // "your best run" stays honest
+  else if (g && !b.g && full === b.full && tSec <= b.t * 1.1 + 1e-9) b.g = g
   if (stars > old) data.stars[k] = stars
-  return { stars, newStars: stars > old, newBest: improved && !!b, best: data.best[k] }
+  return { stars, newStars: stars > old, newBest: improved && !!b, improved, best: data.best[k] }
 }
 
 // ---- dates and the daily
@@ -119,5 +138,5 @@ export function recentDays(data, today, n = 7) {
   return out
 }
 export function shareText(date, rec, nRings) {
-  return `Star Post ${date} · all ${nRings} letters · launch #${rec.launch} · ${rec.t.toFixed(1)}s\ngames.oddvale.com/star-post`
+  return `Star Post ${date} · all ${nRings} letters · launch #${rec.launch} · ${rec.t.toFixed(1)}s\nhttps://games.oddvale.com/star-post/`
 }

@@ -118,12 +118,13 @@ export function createUI(stage, { onAction, onNudge, onFast }) {
         <p class="note">Dock for 1 star, post every letter for 2, do it inside par for 3. Stuck? The system after it is open too.</p>
         <div class="btns">${btn('title', 'Back', 'small')}</div>`, { wide: true, focus: '.cell:not(.locked)' })
     },
-    menu({ label, name, hint, rule, daily }) {
+    menu({ label, name, hint, rule, ghost, daily }) {
       show('menu', `
         <span class="eyebrow">Paused &middot; ${esc(label)}</span>
         <h2>${esc(name)}</h2>
         ${hint ? `<p class="sub">${esc(hint)}</p>` : ''}
         ${rule ? `<p class="note">${esc(rule)}</p>` : ''}
+        ${ghost ? `<p class="note ghost-note"><span class="ghost-key" aria-hidden="true"></span> The yellow dotted trail is your best run (${esc(ghost)}). Race it.</p>` : ''}
         <div class="btns col">
           ${btn('resume', 'Back to it', 'primary')}
           ${daily ? '' : btn('levels', 'All systems')}
@@ -132,7 +133,7 @@ export function createUI(stage, { onAction, onNudge, onFast }) {
         <p class="how keys"><kbd>R</kbd> retry &middot; hold <kbd>F</kbd> fast-forward &middot; <kbd>Space</kbd> launch, then puff &middot; <kbd>Shift</kbd> fine aim</p>
         <p class="how touch">Pull back anywhere and let go. Changed your mind? Slide back to where you pressed, or touch with a second finger.</p>`)
     },
-    result({ label, name, stars, title, quip, time, par, letters, total, landing, best, newBest, hasNext, nextOpen, rule }) {
+    result({ label, name, stars, title, quip, time, par, letters, total, landing, best, newBest, ghost, hasNext, nextOpen, rule }) {
       show('result', `
         <span class="eyebrow">${esc(label)} &middot; ${esc(name)}</span>
         <h2>${esc(title)}</h2>
@@ -140,6 +141,7 @@ export function createUI(stage, { onAction, onNudge, onFast }) {
         <p class="score"><b>${time}</b> ${total ? `<i>&middot;</i> ${letters}/${total} letters` : ''} <i>&middot;</i> ${esc(landing)} landing</p>
         <p class="sub">${esc(quip)}</p>
         <p class="note">${newBest ? '<span class="tag">New best</span> ' : best ? `Best ${best} &middot; ` : ''}par ${par}${stars < 3 ? ` &middot; ${esc(rule)}` : ''}</p>
+        ${ghost ? '<p class="note ghost-note"><span class="ghost-key" aria-hidden="true"></span> This run now flies as your ghost: the yellow dotted trail.</p>' : ''}
         <div class="btns col">
           ${hasNext ? btn('next', 'Next system', stars >= 2 ? 'primary' : '', '') : ''}
           ${btn('retry', stars >= 3 ? 'Fly it again' : 'Try for more stars', stars >= 2 && hasNext ? '' : 'primary')}
@@ -162,7 +164,20 @@ export function createUI(stage, { onAction, onNudge, onFast }) {
         <div data-talk></div>`)
       return overlay.querySelector('[data-talk]')
     },
-    copied(ok) { const c = overlay.querySelector('[data-act="copy"]'); if (c) c.textContent = ok ? 'Copied!' : 'Could not copy' },
+    /** After Copy result: say it worked, or show the text itself (selected) when the clipboard was refused. */
+    copied(ok, text = '') {
+      const c = overlay.querySelector('[data-act="copy"]')
+      if (c) c.textContent = ok ? 'Copied!' : 'Copy it from the box below'
+      if (ok || !text || !c) return
+      let box = overlay.querySelector('.share-box')
+      if (!box) {
+        box = document.createElement('textarea')
+        box.className = 'share-box'; box.readOnly = true; box.rows = 3; box.setAttribute('aria-label', 'Your result, to copy')
+        c.closest('.btns').after(box)
+      }
+      box.value = text
+      box.focus({ preventScroll: true }); box.select()
+    },
   }
   return ui
 }

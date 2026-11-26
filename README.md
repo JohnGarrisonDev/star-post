@@ -8,7 +8,7 @@ Play it at [games.oddvale.com/star-post](https://games.oddvale.com/star-post/). 
 
 - **Campaign:** 30 hand-designed systems in three sectors: plain planets, then rubber moons, boost gates and puffs, then moving planets, wormholes and repulsor stars. Stars for docking, posting every letter, and doing it inside par.
 - **Daily delivery:** one generated system per day, the same for everyone. Fewest launches wins; streaks and a copyable result.
-- Instant retry, fast-forward, and the ghosts of your last three attempts on screen.
+- Instant retry, fast-forward, the ghosts of your last three attempts on screen, and your best run on each system as a yellow ghost to race.
 
 ## Run it
 No build step and no dependencies. Serve the folder with any static server and open it:

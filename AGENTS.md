@@ -5,7 +5,7 @@ Gravity-slingshot delivery game for Oddvale Games. One launch (angle + power), t
 ## Architecture
 ```
 index.html        page shell (from the kit template); How to play / Controls cards
-src/physics.js    DOM-free simulation: compileLevel, createFlight, step, puff, fly, previewPath. Fixed step DT = 1/120
+src/physics.js    DOM-free simulation: compileLevel, createFlight, step, puff, fly, previewPath, replayPath. Fixed step DT = 1/120
 src/solver.js     headless launch search (grid over angle x power), local window, one-puff search, path turning
 src/levels.js     the 30 campaign levels + sector names (pure data)
 src/daily.js      Daily delivery generator (seeded), levelHash for snapshots
@@ -92,6 +92,16 @@ Why these floors: 12 units is 6 cells of the 1 degree x 2 power grid, a patch of
 | 29 | The Long Way Round | 1702 | 1698 | 10 | 14 | 7 | 5.5 | rings and dock moved, last ring 40, dockR 42, preview 1.2 |
 | 30 | Last Post | 242 | 324 | 4 | 16 | 7.5 | 6 | rings and dock moved, middle ring 42, preview 1.2 |
 
+### 1.4.0 widening (rev 3)
+| # | Level | Dock before | Dock after | Full before | Full after | sol local before | sol local after | What changed |
+|---|---|---|---|---|---|---|---|---|
+| 20 | Bulk Mail | 512 | 322 | 14 | 16 | 3.9 | 6.2 | rings [759,511,38] [840,249,26] [807,292,34], dock (744,337) dockR 44 |
+| 28 | Night Shift | 1180 | 1370 | 14 | 14 | 5.5 | 6.4 | rings 40 and nudged, dock (430,429) dockR 44 |
+| 29 | The Long Way Round | 1698 | 1888 | 14 | 22 | 7.8 | 13.7 | rings [753,387,40] [251,391,42] [336,181,38], dock (304,464) dockR 44 |
+| 30 | Last Post | 324 | 204 | 16 | 16 | 2.7 | 3.8 | rings [294,270,38] [852,250,42] [854,360,42], dock (900,167) dockR 44 |
+
+Pars and sols unchanged (the par rule gives the same numbers). Sector medians of the full window are now 45, 31, 22. Found with a scratch annealer that caches every launch's path once (rings and the dock never change a trajectory), moves rings and the dock at most 30-70 units, keeps rings and the dock apart from each other and off solid bodies, and scores the test-grid full window plus the fine local window round sol; every result was re-checked with the real `search` and `localWindow`. `tests/levels.test.js` pins the new floors ("the 1.4.0 widening holds"). Why the full windows of Bulk Mail, Night Shift and Last Post barely moved: their winning set is a thin line through a pinhole (Night Shift and Last Post must hit a wormhole mouth, radius 18; Bulk Mail's moon bounce after a planet hook is chaotic), so ring and dock sizes only thicken the line locally. Going further means moving planets or wormholes.
+
 Retuned levels carry `rev: 2`. Save data stores the rev with a best time (`best[key].r`, only when > 1); on load a best from another rev is dropped and the stars are kept, so a retune never leaves a meaningless best time beside a new par. Bump `rev` again if you change a level's layout.
 
 How it was tuned: rings and the dock never change a trajectory (only the dock ends one), so a scratch tool flew every launch on the test grid once, cached the paths, and annealed ring/dock positions and sizes (and, for the hardest levels, small planet moves and mass changes, re-flying after each) towards a target window, then re-checked everything with the real `search`. `sol` was then picked as the full launch with the biggest local window, and par recomputed with the rule below.
@@ -99,12 +109,18 @@ How it was tuned: rings and the dock never change a trajectory (only the dock en
 - Difficulty also comes from the preview shrinking (5 s down to 1.2 s) and from moving parts. Ring radius is 34 in sector 1, 30 in sector 2, 28 in sector 3, bigger where a level needed it; widen a ring or the dock (`dockR`) to ease a level.
 - Par = the smaller of (designer route x 1.08 + 0.2) and (fastest full line x 1.5 + 0.5), rounded up to 0.5 s. So three stars always exist but sometimes need a quicker line than the obvious one.
 - Every level's full delivery is proven without puffs; puffs (sector 2 level 5 onwards) are a correction tool, never required. `searchWithPuff` exists in the solver if you want a level that needs one.
-- Remaining weak spots: Bulk Mail (14) is below the rest of sector 2 because the moon bounce after a planet hook is chaotic; Night Shift, The Long Way Round and Last Post sit at 14-16; Last Post's best single line has a local window of only 2.7; Rebound's two rubber moons are each needed by only about a third to a half of winning launches. None of this has been playtested by a person.
+- Remaining weak spots: Bulk Mail (16) is still below the rest of sector 2; Night Shift (14) and Last Post (16) are still the tightest full windows in sector 3 (see the 1.4.0 table for why); Last Post's sol local window is 3.8, the lowest of any level; Rebound's two rubber moons are each needed by only about a third to a half of winning launches. None of this has been playtested by a person.
 - Unlocking: a level is open if either of the two before it has a star, so one level can always be skipped.
+
+## Best ghost (1.4.0)
+- `recordDock(data, lvl, nGot, t, ghost)` stores the run behind a best as `best[key].g = [a10, p10, n, dx, dy, ...]` (one triple per puff, `n` = the step it fired before). `main.js` logs puffs in `doPuff` with the direction `puff()` really used (the velocity when "straight ahead"), so `replayPath` (physics.js) rebuilds the exact path. A best saved before 1.4.0 has no `g`; a later docking of the same kind (full or not) within 10% of the best time gives it one without changing the time (a slower run is never shown as "your best run").
+- `sanitize` drops a malformed `g` (keeps the time). A rev bump drops the best and its ghost together.
+- `loadBestGhost()` replays it on level load and after each docking (campaign only, not the daily); if the replay does not dock the same way it is not shown. The renderer draws it as yellow dots under the old attempts, and during a flight as a hollow yellow capsule at the same step of the best run.
 
 ## Daily delivery (src/daily.js)
 - Seed: `hashString('star-post:' + 'YYYY-MM-DD')`, local date. 2-3 planets (sometimes a rubber moon), 2-3 rings, no puffs, 1.6 s preview.
 - Built on a seeded launch that draws a curvy safe path; then proven: the launch delivers everything, its local window is 2-9.5, the coarse global search finds a full delivery with a window of at most 260, and with gravity off no launch delivers everything.
+- Copy result tries `navigator.clipboard`, then `execCommand('copy')`; if both fail, `ui.copied(false, text)` puts a selected read-only box with the text under the buttons (1.4.0), so the result can always be copied by hand.
 - Score: launches until the first full delivery (then flight time). After that the day is free play and the record never changes. Streak = consecutive finished days.
 - **Snapshot rule:** `tests/daily.test.js` pins the layout hash of four dates. Any change to daily.js, to physics.js constants or maths, or to the kit rng changes everyone's daily. Do not update the hashes casually; if you must, say so in CHANGELOG.md and never mid-day for a date that is already live.
 
@@ -123,7 +139,8 @@ The hub's anonymous player-input widgets (copy of the kit, do not edit). `showDa
 ## Backlog
 - A sandbox / free-flight mode with a level editor that shares a code.
 - Daily archive (must never touch the streak) and a share image of the trail.
+- A ghost for the daily too (today's best run), and a toggle to hide the best ghost.
 - More campaign sectors: rings that orbit, one-way gates, twin capsules.
 - Levels that truly need a puff (prove with `searchWithPuff`), and a "no puffs used" badge.
-- Trail gallery: keep the prettiest three-star trail per level and show it in the level select.
+- Trail gallery: show each level's best ghost (already saved since 1.4.0) as a thumbnail in the level select.
 - Colour-blind check of the speed-coloured trail (speed is cosmetic, so it is not a blocker).

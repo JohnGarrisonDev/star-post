@@ -75,6 +75,26 @@ test('daily: launches count until solved, streaks need consecutive days', () => 
   dailyLaunch(d, '2026-11-25'); dailyFlight(d, '2026-11-25', { full: true, letters: 2, t: 6 }); assert.equal(d.streak, 2)
   assert.equal(liveStreak(d, '2026-11-26'), 2); assert.equal(liveStreak(d, '2026-11-27'), 0)
   dailyLaunch(d, '2026-11-28'); dailyFlight(d, '2026-11-28', { full: true, letters: 2, t: 6 }); assert.equal(d.streak, 1); assert.equal(d.bestStreak, 2)
-  assert.equal(shareText('2026-11-24', d.daily['2026-11-24'], 3), 'Star Post 2026-11-24 · all 3 letters · launch #3 · 11.2s\ngames.oddvale.com/star-post')
+  assert.equal(shareText('2026-11-24', d.daily['2026-11-24'], 3), 'Star Post 2026-11-24 · all 3 letters · launch #3 · 11.2s\nhttps://games.oddvale.com/star-post/')
   const days = recentDays(d, '2026-11-28', 7); assert.equal(days.length, 7); assert.equal(days[6].date, '2026-11-28'); assert.equal(days[2].rec.launch, 3)
+})
+
+test('best ghost (1.4.0): the run behind a best is kept, cleaned on load, and old bests pick one up', () => {
+  const d = defaults(), l = LEVELS[2], k = K(2) // First Post, rev 2
+  recordDock(d, l, 1, 9.0, [3350, 600])
+  assert.deepEqual(d.best[k].g, [3350, 600], 'a new best stores its launch')
+  recordDock(d, l, 1, 9.5, [3000, 500]); assert.deepEqual(d.best[k].g, [3350, 600], 'a slower run does not replace it')
+  recordDock(d, l, 1, 8.0, [3360, 610, 120, 0.5, -0.5]); assert.deepEqual(d.best[k].g, [3360, 610, 120, 0.5, -0.5])
+  assert.deepEqual(sanitize(JSON.parse(JSON.stringify(d)), LEVELS).best[k].g, [3360, 610, 120, 0.5, -0.5], 'survives a reload')
+  // a best from before 1.4.0 has no ghost: the next run of the same kind gives it one, without touching the time
+  const old = sanitize({ best: { [k]: { t: 4.2, full: true, r: 2 } } }, LEVELS)
+  assert.equal(old.best[k].g, undefined)
+  recordDock(old, l, 0, 2.0, [1, 200]); assert.equal(old.best[k].g, undefined, 'an empty docking is not a ghost for a full best')
+  recordDock(old, l, 1, 6.0, [3000, 500]); assert.equal(old.best[k].g, undefined, 'a much slower run is not passed off as the best run')
+  recordDock(old, l, 1, 4.6, [3350, 600]); assert.deepEqual(old.best[k], { t: 4.2, full: true, r: 2, g: [3350, 600] }, 'a run within 10% of the best is adopted')
+  // junk ghosts are dropped, the best time stays
+  for (const g of ['x', [1], [1, 2, 3], [3350, 5], [9999, 500], [3350, 600, 5, 'a', 1], [3350, 600, 50, 1, 0, 10, 1, 0], [3350, 600, NaN, 1, 1]]) {
+    const c = sanitize({ best: { [k]: { t: 4.2, full: true, r: 2, g } } }, LEVELS)
+    assert.deepEqual(c.best[k], { t: 4.2, full: true, r: 2 }, JSON.stringify(g))
+  }
 })

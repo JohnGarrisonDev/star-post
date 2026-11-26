@@ -249,6 +249,21 @@ export function fly(comp, a10, p10, puffs = null) {
 }
 export const isFull = (comp, s) => s.status === 'dock' && s.nGot === comp.rings.length
 
+/**
+ * Replay a whole run (launch plus puffs given flat as [n, dx, dy, n, dx, dy, ...]) and sample its path every `every`
+ * steps: { pts: [x0, y0, ...], status, n, nGot }. Same steps as fly(), so a stored run replays exactly (the best ghost).
+ */
+export function replayPath(comp, a10, p10, flatPuffs = [], every = 6) {
+  const s = createFlight(comp, a10, p10), pts = [s.x, s.y]
+  let k = 0
+  while (s.status === 'fly') {
+    while (k + 2 < flatPuffs.length && flatPuffs[k] === s.n) { puff(comp, s, flatPuffs[k + 1], flatPuffs[k + 2]); k += 3 }
+    step(comp, s)
+    if (s.n % every === 0 || s.status !== 'fly') pts.push(s.x, s.y)
+  }
+  return { pts, status: s.status, n: s.n, nGot: s.nGot }
+}
+
 /** The path a launch would take for `steps` steps, sampled every `every` steps: flat [x0,y0,x1,y1,...]. Stops when the flight ends. */
 export function previewPath(comp, a10, p10, steps = comp.previewSteps, every = 4) {
   const s = createFlight(comp, a10, p10), pts = [s.x, s.y]

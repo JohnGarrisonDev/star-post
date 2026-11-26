@@ -72,3 +72,15 @@ test('letters need gravity or gadgets: no level with rings is solved by a plain 
     assert.equal(search(flat, { aStep: 10, pStep: 300 }).full, 0, l.name)
   }
 })
+
+// 1.4.0 widened the four tightest late systems; keep them at least this wide (full window / local window round sol).
+const WIDENED = [['Bulk Mail', 16, 6], ['Night Shift', 14, 6], ['The Long Way Round', 20, 12], ['Last Post', 16, 3.5]]
+test('the 1.4.0 widening holds: Bulk Mail, Night Shift, The Long Way Round, Last Post', () => {
+  for (const [name, minFull, minLocal] of WIDENED) {
+    const l = LEVELS.find((x) => x.name === name), comp = compileLevel(l)
+    assert.equal(l.rev, 3, `${name} is rev 3 (its layout changed, so old best times are cleared and stars kept)`)
+    assert.ok(search(comp, { aStep: 10, pStep: 20 }).fullWindow >= minFull, `${name}: full window >= ${minFull}`)
+    const w = localWindow(comp, l.sol[0], l.sol[1]).fullWindow
+    assert.ok(w >= minLocal, `${name}: local window round sol ${w.toFixed(1)} >= ${minLocal}`)
+  }
+})

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DT, compileLevel, createFlight, step, puff, fly, previewPath, pullAt, dsin, dcos, landing, speedOf, LOST_STEPS, PUFF_DV, DOCK_R } from '../src/physics.js'
+import { DT, compileLevel, createFlight, step, puff, fly, previewPath, replayPath, pullAt, dsin, dcos, landing, speedOf, LOST_STEPS, PUFF_DV, DOCK_R } from '../src/physics.js'
 
 const far = [-9999, -9999]
 const base = (o = {}) => ({ start: [100, 320], dock: far, planets: [], rings: [], ...o })
@@ -110,4 +110,21 @@ test('leaving the field for three seconds is lost in space; a stuck orbit runs o
 
 test('landing ratings follow arrival speed', () => {
   assert.equal(landing(80).id, 'feather'); assert.equal(landing(150).id, 'neat'); assert.equal(landing(250).id, 'firm'); assert.equal(landing(400).id, 'thump')
+})
+
+test('a stored run (launch + puffs) replays exactly like the live flight: the best ghost', async () => {
+  const { LEVELS } = await import('../src/levels.js')
+  const l = LEVELS.find((x) => x.name === 'Puff School'), comp = compileLevel(l)
+  // fly it the way the game does: step, and between steps puff (once straight ahead, once sideways)
+  const s = createFlight(comp, l.sol[0], l.sol[1]), log = []
+  while (s.status === 'fly') {
+    if (s.n === 90) { log.push(s.n, s.vx, s.vy); puff(comp, s) }
+    if (s.n === 200) { log.push(s.n, 0.6, -0.8); puff(comp, s, 0.6, -0.8) }
+    step(comp, s)
+  }
+  const r = replayPath(comp, l.sol[0], l.sol[1], log, 6)
+  assert.equal(r.status, s.status); assert.equal(r.n, s.n); assert.equal(r.nGot, s.nGot)
+  assert.equal(r.pts[r.pts.length - 2], s.x); assert.equal(r.pts[r.pts.length - 1], s.y)
+  const plain = replayPath(comp, l.sol[0], l.sol[1]), f = fly(comp, l.sol[0], l.sol[1])
+  assert.equal(plain.n, f.n); assert.equal(plain.status, 'dock')
 })

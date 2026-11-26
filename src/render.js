@@ -316,7 +316,8 @@ export function createRenderer(canvas) {
     // launch pad
     { const x = X(comp.start.x, comp.start.y), y = Y(comp.start.x, comp.start.y), r = capsuleSize() * 1.9
       g.strokeStyle = 'rgba(251,246,236,.45)'; g.lineWidth = 1.5; g.setLineDash([3, 5]); g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke(); g.setLineDash([]) }
-    // old attempts, faintest first
+    // your best run on this level (yellow), then old attempts, faintest first
+    if (v.best) dots(v.best.pts, 2, Math.max(1.4, 2 * cam.s), C.yellow, 0.42, false)
     for (let i = v.ghosts.length - 1; i >= 0; i--) dots(v.ghosts[i], 2, Math.max(1.3, 1.9 * cam.s), C.paper, [0.34, 0.17, 0.09][i] || 0.08, false)
     for (let i = 0; i < B.length; i++) drawBody(B[i], i, X(comp.px[i], comp.py[i]), Y(comp.px[i], comp.py[i]))
     const got = v.got, nGot = v.nGot
@@ -349,6 +350,15 @@ export function createRenderer(canvas) {
           g.fillStyle = C.yellow; g.beginPath(); g.arc(x + sdx * 44, y + sdy * 44, 5, 0, 7); g.fill()
         }
       } else if (v.phase === 'lost' || v.phase === 'crash') drawCapsule(f.x, f.y, Math.atan2(f.vy, f.vx) + (v.phase === 'lost' && !reduced() ? time * 3 : 0.5), { sad: true, blink: v.phase === 'crash' })
+    }
+    // the best ghost flies alongside you: a hollow yellow capsule at the same moment of its run
+    if (v.best && v.flight && v.phase === 'fly') {
+      const p = v.best.pts, k = Math.min(p.length / 2 - 1, Math.floor(v.n / v.best.every))
+      const x = X(p[k * 2], p[k * 2 + 1]), y = Y(p[k * 2], p[k * 2 + 1]), r = capsuleSize() * 0.9
+      g.globalAlpha = v.n >= v.best.n ? 0.35 : 0.75
+      g.strokeStyle = C.yellow; g.lineWidth = 2; g.setLineDash([3, 3]); g.beginPath(); g.arc(x, y, r, 0, 7); g.stroke(); g.setLineDash([])
+      g.fillStyle = C.yellow; g.beginPath(); g.arc(x + r * 0.25, y - r * 0.1, r * 0.28, 0, 7); g.fill()
+      g.globalAlpha = 1
     }
     drawParts()
     if (v.warn) {

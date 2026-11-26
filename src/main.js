@@ -1,7 +1,7 @@
 // Star Post entry point: wires physics, renderer, UI, audio and save data together and owns the game flow.
 import { C, makeStore, wireChrome, haptic } from '../kit/kit.js'
 import { LEVELS, SECTORS } from './levels.js'
-import { DT, STEPS_PER_SEC, LOST_STEPS, compileLevel, createFlight, step, puff, previewPath, landing, normA10, clampP10 } from './physics.js'
+import { DT, STEPS_PER_SEC, LOST_STEPS, compileLevel, createFlight, step, puff, previewPath, replayPath, landing, normA10, clampP10 } from './physics.js'
 import { search } from './solver.js'
 import { generateDaily } from './daily.js'
 import { createRenderer, colIndex } from './render.js'
@@ -24,7 +24,9 @@ const G = {
   phase: 'aim', flight: null, events: [], aim: { a10: 0, p10: 500, live: false }, preview: null, ghosts: [],
   trail: { x: new Float32Array(TRAIL_MAX), y: new Float32Array(TRAIL_MAX), c: new Uint8Array(TRAIL_MAX), n: 0 },
   acc: 0, fast: false, slow: false, aimBack: false, endT: 0, puffAim: null, flame: 0, sector: 0, quiet: false, pending: null,
+  launchAim: [0, 0], puffLog: [], best: null, // best: the replayed path of your best run on this level (the "best ghost")
 }
+const BEST_EVERY = 6
 const ui = createUI(stage, { onAction, onNudge, onFast: (on) => { G.fast = on } })
 const sectorOf = (i) => Math.floor(i / 10)
 const labelOf = () => (G.kind === 'daily' ? `Daily · ${G.date}` : `${sectorOf(G.i) + 1}-${(G.i % 10) + 1} · par ${fmtT(G.lvl.par)}`)
@@ -33,7 +35,19 @@ const labelOf = () => (G.kind === 'daily' ? `Daily · ${G.date}` : `${sectorOf(G
 function setLevel(lvl) {
   G.lvl = lvl; G.comp = compileLevel(lvl); G.key = G.kind === 'daily' ? G.date : levelKey(lvl)
   G.phase = 'aim'; G.flight = null; G.trail.n = 0; G.ghosts = []; G.endT = 0; G.fast = false; G.slow = false; G.puffAim = null; G.pending = null
+  G.puffLog = []; G.best = null
   fx.clear(); R.cam.snap = true
+}
+/** Replay the stored best run of this campaign level, if there is one, to draw it as a faint trail to chase. */
+function loadBestGhost() {
+  G.best = null
+  if (G.kind !== 'campaign' || G.mode !== 'play') return
+  const b = data.best[G.key]
+  if (!b || !b.g) return
+  const r = replayPath(G.comp, b.g[0], b.g[1], b.g.slice(2), BEST_EVERY)
+  // a ghost that no longer flies the same way (it always should) is simply not shown
+  if (r.status !== 'dock' || (r.nGot >= G.comp.rings.length) !== !!b.full) return
+  G.best = { pts: Float32Array.from(r.pts), n: r.n, every: BEST_EVERY }
 }
 function loadLevel(kind, i) {
   G.mode = 'play'; G.kind = kind; G.i = i; G.quiet = false
@@ -42,6 +56,7 @@ function loadLevel(kind, i) {
   if (saved) { G.aim.a10 = saved[0]; G.aim.p10 = saved[1]; G.ghosts = [ghostOf(saved[0], saved[1])] } // the last attempt, redrawn after a reload
   else { const dx = G.lvl.dock[0] - G.lvl.start[0], dy = G.lvl.dock[1] - G.lvl.start[1]; G.aim.a10 = normA10(Math.atan2(dy, dx) * 1800 / Math.PI / 10) * 10 % 3600; G.aim.p10 = 500 }
   G.aim.live = false
+  loadBestGhost()
   store.set({ cur: { kind, i } })
   ui.hide()
   ui.hud({ show: true, label: labelOf(), name: G.lvl.name, daily: kind === 'daily' })
@@ -67,6 +82,7 @@ function launch() {
   G.events.length = 0
   G.flight = createFlight(G.comp, G.aim.a10, G.aim.p10, G.events)
   G.phase = 'fly'; G.trail.n = 0; G.acc = 0; G.flame = 1; G.aim.live = false
+  G.launchAim = [G.aim.a10, G.aim.p10]; G.puffLog = []
   data.aims[G.key] = [G.aim.a10, G.aim.p10]; data.launches++
   if (G.kind === 'daily') dailyLaunch(data, G.date)
   store.save()
@@ -87,7 +103,11 @@ function retry() {
 function doPuff(dx, dy) {
   if (G.phase !== 'fly' || !G.flight) return
   if (!G.comp.puffs) return
-  if (!puff(G.comp, G.flight, dx, dy)) { audio.noPuff(); return }
+  const f = G.flight, n = f.n, ahead = dx === undefined || (dx === 0 && dy === 0)
+  // log what puff() really uses (no direction = straight ahead = the current velocity), so the best ghost replays exactly
+  const px = ahead ? f.vx : dx, py = ahead ? f.vy : dy
+  if (!puff(G.comp, f, dx, dy)) { audio.noPuff(); return }
+  G.puffLog.push(n, px, py)
   G.flame = 1
   ui.bar('fly', { puffs: G.flight.puffsLeft, puffsMax: G.comp.puffs })
 }
@@ -128,8 +148,9 @@ function flightEnded() {
       else { ui.toast(full ? `Posted again in ${fmtT(t)}.` : `Docked, but ${left} ${left === 1 ? 'letter is' : 'letters are'} still aboard. Post them all, then dock.`, 3600); G.endT = 1.3; G.pending = retry }
       void wasDone
     } else {
-      const res = recordDock(data, G.lvl, f.nGot, t)
+      const res = recordDock(data, G.lvl, f.nGot, t, [G.launchAim[0], G.launchAim[1], ...G.puffLog])
       store.save()
+      loadBestGhost()
       audio.dock(res.stars)
       G.pending = () => showResult(res, t, f)
     }
@@ -153,7 +174,7 @@ function showResult(res, t, f) {
     title: res.stars === 3 ? 'First class!' : res.stars === 2 ? 'All posted' : total ? 'Docked' : 'Docked, a bit late',
     quip: total || res.stars === 3 ? QUIPS[res.stars][(G.i + f.n) % 3] : 'Safe and sound. Now beat the clock.',
     time: fmtT(t), par: fmtT(G.lvl.par), letters: f.nGot, total, landing: landing(f.dockSpeed).name,
-    best: best && !res.newBest ? fmtT(best.t) : '', newBest: res.newBest, hasNext, rule: res.stars === 1 && total ? `post ${total === 1 ? 'the letter' : `all ${total} letters`} for 2 stars` : `beat ${fmtT(G.lvl.par)} for 3 stars`,
+    best: best && !res.newBest ? fmtT(best.t) : '', newBest: res.newBest, ghost: res.improved && !!G.best, hasNext, rule: res.stars === 1 && total ? `post ${total === 1 ? 'the letter' : `all ${total} letters`} for 2 stars` : `beat ${fmtT(G.lvl.par)} for 3 stars`,
   })
   for (let k = 0; k < res.stars; k++) setTimeout(() => audio.star(k), 250 + k * 140)
 }
@@ -204,11 +225,13 @@ function openMenu() {
   if (G.mode !== 'play') return
   if (ui.screen === 'menu') { ui.hide(); return }
   if (ui.screen) return
-  ui.menu({ label: labelOf(), name: G.lvl.name, hint: G.lvl.hint, rule: G.kind === 'daily' ? 'Fewest launches to post every letter and dock. Ties go to the shorter flight.' : starRule(G.lvl), daily: G.kind === 'daily' })
+  ui.menu({ label: labelOf(), name: G.lvl.name, hint: G.lvl.hint, rule: G.kind === 'daily' ? 'Fewest launches to post every letter and dock. Ties go to the shorter flight.' : starRule(G.lvl), ghost: G.best ? fmtT(data.best[G.key].t) : '', daily: G.kind === 'daily' })
 }
 function copyResult() {
   const text = shareText(G.date, dailyRec(data, G.date), G.comp.rings.length)
-  const fallback = () => { try { const t = document.createElement('textarea'); t.value = text; t.style.position = 'fixed'; t.style.opacity = '0'; stage.appendChild(t); t.select(); const ok = document.execCommand('copy'); t.remove(); ui.copied(ok) } catch { ui.copied(false) } }
+  // Clipboard refused (no permission, an embedded frame, an old browser): try the old way, and if that fails too,
+  // the card shows the text itself, selected, so it can be copied by hand.
+  const fallback = () => { let ok = false; try { const t = document.createElement('textarea'); t.value = text; t.style.position = 'fixed'; t.style.opacity = '0'; stage.appendChild(t); t.select(); ok = document.execCommand('copy'); t.remove() } catch { ok = false } ui.copied(ok, text) }
   if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(() => ui.copied(true), fallback)
   else fallback()
 }
@@ -316,7 +339,7 @@ function view() {
   const f = G.flight
   return {
     comp: G.comp, n: f ? f.n : 0, flight: f, phase: G.phase, aim: G.aim, preview: G.phase === 'aim' && G.mode === 'play' ? G.preview : null,
-    ghosts: G.ghosts, trail: G.trail, got: f ? f.got : null, nGot: f ? f.nGot : 0, alpha: G.phase === 'fly' ? G.acc : 0, flame: G.flame, puffAim: G.puffAim,
+    ghosts: G.ghosts, best: G.mode === 'play' ? G.best : null, trail: G.trail, got: f ? f.got : null, nGot: f ? f.nGot : 0, alpha: G.phase === 'fly' ? G.acc : 0, flame: G.flame, puffAim: G.puffAim,
     warn: G.mode === 'play' && G.phase === 'fly' && f && f.out > 20 ? `Out of range: ${((LOST_STEPS - f.out) / STEPS_PER_SEC).toFixed(1)}s` : G.mode === 'play' && G.phase === 'fly' && G.slow ? 'Slow motion: let go to puff' : G.mode === 'play' && G.phase === 'aim' && G.aimBack ? 'Let go here to cancel' : '',
   }
 }
@@ -351,7 +374,7 @@ if (new URLSearchParams(location.search).has('debug')) {
     G, data, ui, R,
     /** advance the game clock by `seconds` in 1/60 s frames and draw once */
     advance(seconds = 1) { const n = Math.round(seconds * 60); for (let i = 0; i < n; i++) update(1 / 60); R.draw(view()); return this.state() },
-    state() { const f = G.flight; return { mode: G.mode, kind: G.kind, i: G.i, name: G.lvl && G.lvl.name, phase: G.phase, screen: ui.screen, aim: [G.aim.a10, G.aim.p10], t: f ? f.n / STEPS_PER_SEC : 0, got: f ? f.nGot : 0, status: f ? f.status : null, puffs: f ? f.puffsLeft : null, ghosts: G.ghosts.length, trail: G.trail.n } },
+    state() { const f = G.flight; return { mode: G.mode, kind: G.kind, i: G.i, name: G.lvl && G.lvl.name, phase: G.phase, screen: ui.screen, aim: [G.aim.a10, G.aim.p10], t: f ? f.n / STEPS_PER_SEC : 0, got: f ? f.nGot : 0, status: f ? f.status : null, puffs: f ? f.puffsLeft : null, ghosts: G.ghosts.length, trail: G.trail.n, bestGhost: G.best ? G.best.n : 0 } },
     goto(i) { loadLevel('campaign', i) }, daily() { loadLevel('daily', 0) }, title: showTitle, levels: showLevels,
     aim(a10, p10) { G.aim.a10 = a10; G.aim.p10 = p10; aimChanged(false) }, launch, retry, puff: doPuff, act: onAction,
     /** aim at a full-delivery launch (the designer's, else a search) */

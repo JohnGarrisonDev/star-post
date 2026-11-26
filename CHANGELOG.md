@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.4.0 (2026-11-26)
+Race your best run.
+- Your best run on each system now stays on the map as a yellow dotted trail, and a hollow yellow capsule flies it beside you on every retry. Beat it and the ghost becomes your new run. (A best time from before this update picks up a ghost the next time you dock within 10% of it.)
+- Bulk Mail, Night Shift, The Long Way Round and Last Post are a little kinder: bigger mailboxes and docks, moved a touch. The Long Way Round has the most room to post every letter now, and Last Post's best line is easier to hold. Your stars stay; best times on these four are cleared because the layout changed. Par is the same.
+- Copy result: if your browser won't let the game copy, the card now shows the result in a box, selected, ready to copy by hand.
+- The Daily delivery is unchanged.
+- Copy result now ends with the full link, https://games.oddvale.com/star-post/.
+- On small phones the system name in the top bar shortens with "..." instead of running under the launch counter.
+
 ## 1.3.0 (2026-11-26)
 Plays better on phones.
 - Full screen on every phone, iPhone included: tap "Play full screen" under the game. Upright or sideways, the map re-fits to the screen.
