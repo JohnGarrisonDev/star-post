@@ -152,16 +152,22 @@ function makeFullscreen(stage, { orientation, button }) {
   function enter() {
     if (on()) return
     if (stage.requestFullscreen) {
+      // Some embedded browsers never settle the request: fall back to focus mode after a second.
+      const fallback = setTimeout(() => { if (!document.fullscreenElement) enterFocus() }, 1000)
       stage.requestFullscreen({ navigationUI: 'hide' })
-        .then(() => { if (orientation) screen.orientation?.lock?.(orientation).catch(() => {}) })
-        .catch(enterFocus)
+        .then(() => { clearTimeout(fallback); if (orientation) screen.orientation?.lock?.(orientation).catch(() => {}) })
+        .catch(() => { clearTimeout(fallback); enterFocus() })
     } else enterFocus()
   }
   function exit() {
     if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
     else exitFocus(false)
   }
-  document.addEventListener('fullscreenchange', sync)
+  document.addEventListener('fullscreenchange', () => {
+    // A late native success after the focus fallback: keep just the native one.
+    if (document.fullscreenElement === stage && focus) { focus = false; root.classList.remove('stage-focus'); if (history.state?.oddvaleFocus) history.back() }
+    sync()
+  })
   window.addEventListener('popstate', () => exitFocus(true))
   window.addEventListener('keydown', (e) => { if (e.key === 'Escape' && focus) exitFocus(false) })
   if (button) { button.hidden = false; button.addEventListener('click', () => (on() ? exit() : enter())) }
