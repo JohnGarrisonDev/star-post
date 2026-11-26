@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.3.0 (2026-11-26)
+Plays better on phones.
+- Full screen on every phone, iPhone included: tap "Play full screen" under the game. Upright or sideways, the map re-fits to the screen.
+- Cancel a pull: slide back to where you pressed (the cancel spot is bigger on touch screens) and let go, or touch with a second finger. The same second finger cancels a puff.
+- The aim and power buttons no longer get squashed on small phones: they are full size, and Launch becomes "Go" to make room.
+- Bigger menu and sector buttons, and a small buzz on launch, crash and docking (Android).
+- The daily card's vote and the level picker fit on small phones without scrolling.
+- The top bar and controls keep clear of notches and the home bar in full screen.
+
 ## 1.2.0 (2026-11-25)
 - Tell us how hard today's Daily delivery was with one tap, and see how you did against everyone else today (fewest launches, then the quicker flight). Anonymous: nothing about you is stored.
 - A new "Tell us" card under the game: thumbs up or down and a few one-tap notes, no account needed.

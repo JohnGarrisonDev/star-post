@@ -8,6 +8,13 @@
   <link rel="canonical" href="https://games.oddvale.com/star-post/" />
   <meta name="theme-color" content="#17131f" />
   <link rel="icon" href="kit/favicon.svg" type="image/svg+xml" />
+  <!-- "Add to Home Screen" opens the whole arcade like an app (no browser bars), from any game page. -->
+  <link rel="manifest" href="../site.webmanifest" />
+  <link rel="apple-touch-icon" href="../apple-touch-icon.png" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="Oddvale Games" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="Oddvale Games" />
   <meta property="og:title" content="Star Post — Oddvale Games" />
@@ -60,11 +67,12 @@
           <li>The Daily delivery is one new system a day, the same for everyone: post it all in the fewest launches.</li>
         </ul></div>
         <div class="card yellow"><h2>Controls</h2><ul>
-          <li><b>Mouse or touch:</b> press anywhere, pull back like a slingshot, let go to launch. Longer pull, more power.</li>
+          <li><b>Mouse or touch:</b> press anywhere, pull back like a slingshot, let go to launch. Longer pull, more power. Changed your mind? Slide back to where you pressed and let go, or touch the screen with a second finger.</li>
           <li><b>Fine tuning:</b> the arrow and plus/minus buttons under the game nudge the aim, then press Launch.</li>
           <li><b>Keyboard:</b> <kbd>←</kbd> <kbd>→</kbd> aim, <kbd>↑</kbd> <kbd>↓</kbd> power (hold <kbd>Shift</kbd> for fine steps), <kbd>Space</kbd> to launch.</li>
           <li><b>Puffs</b> (later systems): tap or press <kbd>Space</kbd> in flight for a push straight ahead. Swipe, or use the arrow keys, to push another way. Holding a finger down slows time while you choose.</li>
-          <li><kbd>R</kbd> retries at once, hold <kbd>F</kbd> to fast-forward, <kbd>Esc</kbd> opens the menu.</li>
+          <li>In flight, the <b>Retry</b> and <b>Fast</b> buttons (or <kbd>R</kbd> and hold <kbd>F</kbd>) retry at once and fast-forward. <kbd>Esc</kbd> or the menu button opens the menu.</li>
+          <li><b>Phone:</b> tap <b>Play full screen</b> under the game. It works upright or sideways.</li>
         </ul></div>
         <div class="card tilt-r"><h2>Made by AI, in the open</h2><p>This game was designed and coded by AI models, and AI models keep updating it. The whole thing is on <a href="https://github.com/JohnGarrisonDev/star-post">GitHub</a>: read the code, see what changed, or suggest what comes next.</p></div>
         <div class="card" id="tell-us" hidden></div>
@@ -74,7 +82,7 @@
 
   <footer class="footer">
     <div class="wrap">
-      <span>Star Post v1.2.0 · An <a href="https://oddvale.com">Oddvale</a> game. Your progress is saved in this browser only.</span>
+      <span>Star Post v1.3.0 · An <a href="https://oddvale.com">Oddvale</a> game. Your progress is saved in this browser only.</span>
       <span><a href="../">More games</a> · <a href="https://github.com/JohnGarrisonDev/star-post/issues/new?template=feedback.yml" target="_blank" rel="noopener">Feedback</a> · <a href="../privacy/">Privacy</a> ·<a href="https://github.com/JohnGarrisonDev/star-post">Source</a></span>
     </div>
   </footer>

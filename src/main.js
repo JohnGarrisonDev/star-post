@@ -1,5 +1,5 @@
 // Star Post entry point: wires physics, renderer, UI, audio and save data together and owns the game flow.
-import { C, makeStore, wireChrome } from '../kit/kit.js'
+import { C, makeStore, wireChrome, haptic } from '../kit/kit.js'
 import { LEVELS, SECTORS } from './levels.js'
 import { DT, STEPS_PER_SEC, LOST_STEPS, compileLevel, createFlight, step, puff, previewPath, landing, normA10, clampP10 } from './physics.js'
 import { search } from './solver.js'
@@ -23,7 +23,7 @@ const G = {
   mode: 'title', kind: 'campaign', i: 0, lvl: null, comp: null, key: '', date: null,
   phase: 'aim', flight: null, events: [], aim: { a10: 0, p10: 500, live: false }, preview: null, ghosts: [],
   trail: { x: new Float32Array(TRAIL_MAX), y: new Float32Array(TRAIL_MAX), c: new Uint8Array(TRAIL_MAX), n: 0 },
-  acc: 0, fast: false, slow: false, endT: 0, puffAim: null, flame: 0, sector: 0, quiet: false, pending: null,
+  acc: 0, fast: false, slow: false, aimBack: false, endT: 0, puffAim: null, flame: 0, sector: 0, quiet: false, pending: null,
 }
 const ui = createUI(stage, { onAction, onNudge, onFast: (on) => { G.fast = on } })
 const sectorOf = (i) => Math.floor(i / 10)
@@ -47,7 +47,7 @@ function loadLevel(kind, i) {
   ui.hud({ show: true, label: labelOf(), name: G.lvl.name, daily: kind === 'daily' })
   ui.bar('aim'); aimChanged(false)
   ui.toast(G.lvl.hint, 5200)
-  stats()
+  stats(); fit()
 }
 function ghostOf(a10, p10) { return Float32Array.from(previewPath(G.comp, a10, p10, G.comp.maxSteps, TRAIL_EVERY * 2).pts) }
 function aimChanged(sound = true) {
@@ -72,7 +72,7 @@ function launch() {
   store.save()
   ui.toast('')
   ui.bar('fly', { puffs: G.flight.puffsLeft, puffsMax: G.comp.puffs })
-  audio.launch(G.aim.p10 / 10)
+  audio.launch(G.aim.p10 / 10); haptic(12)
   fx.burst(G.comp.start.x, G.comp.start.y, 'dot', 8, C.paper, 90)
   stats()
 }
@@ -99,9 +99,9 @@ function handleEvents() {
     else if (e.type === 'boost') { fx.pop('g' + e.i); fx.burst(e.x, e.y, 'dot', 6, C.mint, 150); if (!quiet) audio.boost() }
     else if (e.type === 'warp') { fx.pop('w' + e.i); fx.burst(e.x, e.y, 'dot', 6, C.blue, 100); fx.burst(e.tx, e.ty, 'dot', 6, C.pink, 100); if (!quiet) audio.warp() }
     else if (e.type === 'puff') { fx.puff(e.x, e.y, e.dx, e.dy); if (!quiet) audio.puff() }
-    else if (e.type === 'crash') { fx.burst(e.x, e.y, 'star', 9, [C.yellow, C.paper, C.orange], 150); fx.pop('b' + e.i); fx.shake(5); if (!quiet) audio.bonk() }
+    else if (e.type === 'crash') { fx.burst(e.x, e.y, 'star', 9, [C.yellow, C.paper, C.orange], 150); fx.pop('b' + e.i); fx.shake(5); if (!quiet) { audio.bonk(); haptic(50) } }
     else if (e.type === 'lost') { if (!quiet) audio.lost() }
-    else if (e.type === 'dock') { fx.burst(e.x, e.y, 'star', 10, [C.yellow, C.mint, C.paper], 170); fx.stamp(e.x, e.y, 'POSTED'); fx.shake(3) }
+    else if (e.type === 'dock') { if (!quiet) haptic([15, 60, 15]); fx.burst(e.x, e.y, 'star', 10, [C.yellow, C.mint, C.paper], 170); fx.stamp(e.x, e.y, 'POSTED'); fx.shake(3) }
   }
   G.events.length = 0
 }
@@ -220,14 +220,24 @@ function onNudge(kind, repeat) {
 }
 
 // ---------- input: pointer
-let pid = null, sx = 0, sy = 0
+// Press anywhere and pull back: the launch goes the other way, so the finger never sits on the aim line.
+// Cancel a pull: bring the finger back to where it started (a bigger dead zone on touch), or touch with a second finger.
+let pid = null, sx = 0, sy = 0, dead = 8
 const maxPull = () => { const r = canvas.getBoundingClientRect(); return Math.max(110, Math.min(240, Math.min(r.width, r.height) * 0.42)) }
+function cancelPointer() {
+  if (pid === null) return
+  try { canvas.releasePointerCapture(pid) } catch { /* not captured */ }
+  pid = null
+  if (G.phase === 'aim' && (G.aim.live || G.aimBack)) { G.aim.live = false; G.aimBack = false; aimChanged(false); ui.toast('Launch cancelled.', 1400) }
+  else if (G.phase === 'fly' && G.slow) { G.slow = false; G.puffAim = null; ui.toast('Puff cancelled.', 1400) }
+}
 canvas.addEventListener('pointerdown', (e) => {
   if (e.button !== undefined && e.button > 0) return
-  if (G.mode !== 'play' || ui.screen || pid !== null) return
+  if (G.mode !== 'play' || ui.screen) return
+  if (pid !== null) { if (e.pointerId !== pid) { cancelPointer(); e.preventDefault() } return } // a second finger cancels
   if (G.phase === 'crash' || G.phase === 'lost') retry() // no waiting: grab and go again
   if (G.phase === 'docked') return
-  pid = e.pointerId; sx = e.clientX; sy = e.clientY
+  pid = e.pointerId; sx = e.clientX; sy = e.clientY; dead = e.pointerType === 'mouse' ? 8 : 20; G.aimBack = false
   try { canvas.setPointerCapture(e.pointerId) } catch { /* synthetic events have no capture */ }
   if (G.phase === 'fly' && G.comp.puffs && G.flight.puffsLeft > 0) G.slow = true
   e.preventDefault()
@@ -236,9 +246,10 @@ canvas.addEventListener('pointermove', (e) => {
   if (e.pointerId !== pid) return
   const dx = e.clientX - sx, dy = e.clientY - sy, len = Math.hypot(dx, dy)
   if (G.phase === 'aim') {
-    if (len < 8) { if (G.aim.live) { G.aim.live = false } return }
+    if (len < dead) { if (G.aim.live) { G.aim.live = false; G.aimBack = true } return }
+    G.aimBack = false
     const d = R.toWorldDir(-dx, -dy)
-    const a10 = normA10(Math.round(Math.atan2(d[1], d[0]) * 1800 / Math.PI / 5) * 5), p10 = clampP10(Math.round((100 + ((len - 8) / maxPull()) * 900) / 5) * 5)
+    const a10 = normA10(Math.round(Math.atan2(d[1], d[0]) * 1800 / Math.PI / 5) * 5), p10 = clampP10(Math.round((100 + ((len - dead) / maxPull()) * 900) / 5) * 5)
     const changed = a10 !== G.aim.a10 || p10 !== G.aim.p10 || !G.aim.live
     G.aim.a10 = a10; G.aim.p10 = p10; G.aim.live = true
     if (changed) aimChanged()
@@ -249,11 +260,12 @@ canvas.addEventListener('pointermove', (e) => {
 const release = (e, fire) => {
   if (e.pointerId !== pid) return
   pid = null
-  if (G.phase === 'aim') { const go = fire && G.aim.live; G.aim.live = false; if (go) launch() }
+  if (G.phase === 'aim') { const go = fire && G.aim.live; G.aim.live = false; G.aimBack = false; if (go) launch() }
   else if (G.phase === 'fly') { const pa = G.puffAim, was = G.slow; G.slow = false; G.puffAim = null; if (fire && was) { if (pa) doPuff(pa[0], pa[1]); else doPuff() } }
 }
 canvas.addEventListener('pointerup', (e) => release(e, true))
 canvas.addEventListener('pointercancel', (e) => release(e, false))
+canvas.addEventListener('lostpointercapture', (e) => release(e, false)) // no-op after pointerup (pid is already cleared)
 canvas.addEventListener('contextmenu', (e) => e.preventDefault())
 
 // ---------- input: keyboard
@@ -305,7 +317,7 @@ function view() {
   return {
     comp: G.comp, n: f ? f.n : 0, flight: f, phase: G.phase, aim: G.aim, preview: G.phase === 'aim' && G.mode === 'play' ? G.preview : null,
     ghosts: G.ghosts, trail: G.trail, got: f ? f.got : null, nGot: f ? f.nGot : 0, alpha: G.phase === 'fly' ? G.acc : 0, flame: G.flame, puffAim: G.puffAim,
-    warn: G.mode === 'play' && G.phase === 'fly' && f && f.out > 20 ? `Out of range: ${((LOST_STEPS - f.out) / STEPS_PER_SEC).toFixed(1)}s` : G.mode === 'play' && G.phase === 'fly' && G.slow ? 'Slow motion: let go to puff' : '',
+    warn: G.mode === 'play' && G.phase === 'fly' && f && f.out > 20 ? `Out of range: ${((LOST_STEPS - f.out) / STEPS_PER_SEC).toFixed(1)}s` : G.mode === 'play' && G.phase === 'fly' && G.slow ? 'Slow motion: let go to puff' : G.mode === 'play' && G.phase === 'aim' && G.aimBack ? 'Let go here to cancel' : '',
   }
 }
 function frame(now) {
@@ -316,13 +328,20 @@ function frame(now) {
   R.draw(view())
 }
 document.addEventListener('visibilitychange', () => { lastT = performance.now(); G.fast = false; G.slow = false })
-window.addEventListener('resize', () => R.resize())
-if (typeof ResizeObserver === 'function') new ResizeObserver(() => R.resize()).observe(stage)
-document.addEventListener('fullscreenchange', () => R.resize())
+/** Re-fit the canvas and keep the camera clear of the HUD and the control bar (they grow by the safe areas in full screen). */
+function fit() {
+  R.resize()
+  const c = canvas.getBoundingClientRect(), hud = stage.querySelector('.hud'), bar = stage.querySelector('.bar')
+  R.insets.top = hud && !hud.hidden ? Math.max(8, hud.getBoundingClientRect().bottom - c.top + 4) : 50
+  R.insets.bottom = bar && !bar.hidden ? Math.max(8, c.bottom - bar.getBoundingClientRect().top + 6) : 66
+}
+window.addEventListener('resize', fit)
+if (typeof ResizeObserver === 'function') new ResizeObserver(fit).observe(stage)
+document.addEventListener('fullscreenchange', fit)
 
 wireChrome({ stage })
 tellUs(document.getElementById('tell-us'), { game: 'star-post', issueUrl: 'https://github.com/JohnGarrisonDev/star-post/issues/new?template=feedback.yml' })
-R.resize()
+fit()
 if (data.cur && (data.cur.kind === 'daily' || isOpen(data, LEVELS, data.cur.i))) { loadLevel(data.cur.kind, data.cur.i); if (G.kind === 'daily' && dailyRec(data, G.date).done) showDailyDone(false) } else showTitle()
 requestAnimationFrame((t) => { lastT = t; frame(t) })
 
@@ -337,6 +356,6 @@ if (new URLSearchParams(location.search).has('debug')) {
     aim(a10, p10) { G.aim.a10 = a10; G.aim.p10 = p10; aimChanged(false) }, launch, retry, puff: doPuff, act: onAction,
     /** aim at a full-delivery launch (the designer's, else a search) */
     solve() { let s = G.lvl.sol; if (!s) { const r = search(G.comp, { aStep: 10, pStep: 10 }); s = r.bestFull ? [r.bestFull.a, r.bestFull.p] : null } if (s) this.aim(s[0], s[1]); return s },
-    draw() { R.resize(); R.draw(view()) },
+    draw() { fit(); R.draw(view()) },
   }
 }

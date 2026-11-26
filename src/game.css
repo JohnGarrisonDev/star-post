@@ -121,3 +121,61 @@
 }
 @media (max-height: 480px) { .panel { padding: 12px 16px 14px; gap: 6px; } .panel .logo-title { font-size: 40px; } .panel .how { display: none; } }
 @media (max-height: 760px) { .scr-title .panel { gap: 7px; padding-block: 14px 16px; } .scr-title .logo-title { font-size: clamp(40px, 8vw, 56px); } .scr-title .how { display: none; } .scr-title .btn { padding-block: 10px; } }
+
+/* ---- touch and full screen (1.3.0) */
+/* Kit workaround: the "Play full screen" button's icon has no size in kit/shell.css, so it renders huge and wraps the label. */
+.stage-cta { white-space: nowrap; gap: 8px; }
+.stage-cta svg { width: 18px; height: 18px; flex: none; }
+.go .short, .how.touch { display: none; }
+.stepper button { flex: none; }
+.stepper output { flex: 1 1 auto; }
+.hud-btn:active { transform: scale(.92); background: var(--yellow); color: var(--p-ink); border-color: var(--yellow); }
+.cell:active:not([disabled]), .tab:active { transform: translate(1px, 1px); box-shadow: none; }
+@media (pointer: coarse) {
+  .hud { height: 52px; }
+  .bar { height: 62px; padding-block: 5px; }
+  .hud-btn { width: 44px; height: 44px; }
+  .toast { top: 62px; }
+  .tab { min-height: 44px; }
+  .panel .talk-choice { min-height: 44px; }
+  .how.keys { display: none; }
+  .how.touch { display: block; }
+}
+/* narrow phones: two 44px-tall steppers and a short "Go" fit side by side without squashing the buttons */
+@media (max-width: 420px) {
+  .stepper button { width: 40px; }
+  .stepper output { min-width: 42px; font-size: 12.5px; }
+  .go { padding: 0 14px; }
+  .go .long { display: none; } .go .short { display: inline; }
+}
+/* Full screen (native or the iPhone focus mode): bars clear of the notch, the home bar and the kit's exit button. */
+.stage.is-full .hud { height: auto; min-height: 52px; padding-top: env(safe-area-inset-top, 0px); padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: calc(60px + env(safe-area-inset-right, 0px)); }
+.stage.is-full .stage-exit { top: calc(4px + env(safe-area-inset-top, 0px)); }
+.stage.is-full .bar { height: auto; min-height: 60px; padding-bottom: max(7px, env(safe-area-inset-bottom, 0px)); padding-left: max(8px, env(safe-area-inset-left, 0px)); padding-right: max(8px, env(safe-area-inset-right, 0px)); }
+.stage.is-full .bar-aim, .stage.is-full .bar-fly { height: 48px; }
+.stage.is-full .toast { top: calc(62px + env(safe-area-inset-top, 0px)); }
+.stage.is-full .overlay { padding: max(10px, env(safe-area-inset-top, 0px)) max(10px, env(safe-area-inset-right, 0px)) max(10px, env(safe-area-inset-bottom, 0px)) max(10px, env(safe-area-inset-left, 0px)); }
+/* Phones: the daily card's buttons and its "how was it?" vote both fit on a 360 x 640 screen. */
+.btns.pair { margin-top: 0; flex-wrap: nowrap; }
+.btns.pair .btn { flex: 1; }
+@media (max-width: 620px) {
+  .scr-daily .panel { gap: 6px; padding-block: 12px 14px; }
+  .scr-daily .panel h2 { font-size: 30px; }
+  .scr-daily .panel .sub { display: none; }
+  .scr-daily .btns { margin-top: 2px; gap: 8px; }
+  .scr-daily .btns.pair .btn { padding: 10px 8px; font-size: 14.5px; flex-direction: column; gap: 2px; }
+  .panel .talk-daily { margin-top: 2px; padding-top: 8px; gap: 6px; }
+  .panel .talk-beat { font-size: 14.5px; }
+  .panel .talk-daily .talk-row { flex-wrap: nowrap; gap: 5px; }
+  .panel .talk-daily .talk-choice { flex: 1 1 0; min-width: 0; justify-content: center; padding-inline: 4px; }
+}
+/* short landscape phones: the level picker and its Back button fit without scrolling */
+@media (max-height: 480px) { .scr-levels .panel .sub, .scr-levels .panel .note, .scr-levels .panel .eyebrow { display: none; } .scr-levels .panel h2 { font-size: 26px; } }
+.tab .tshort { display: none; }
+@media (max-width: 620px) {
+  .tabs { flex-wrap: nowrap; width: 100%; }
+  .tab { flex: 1; } .tab .tlong { display: none; } .tab .tshort { display: inline; }
+  .scr-levels .panel { gap: 7px; }
+  .scr-levels .panel .eyebrow { display: none; }
+}
+@media (max-width: 620px) and (max-height: 700px) { .scr-levels .panel .note { display: none; } }

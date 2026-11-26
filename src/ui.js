@@ -23,7 +23,7 @@ export function createUI(stage, { onAction, onNudge, onFast }) {
     <div class="bar-aim" data-b="aim">
       <div class="stepper" role="group" aria-label="Angle"><button type="button" data-nudge="a-" aria-label="Aim left">&#9664;</button><output data-b="angle">0&deg;</output><button type="button" data-nudge="a+" aria-label="Aim right">&#9654;</button></div>
       <div class="stepper" role="group" aria-label="Power"><button type="button" data-nudge="p-" aria-label="Less power">&minus;</button><output data-b="power">50</output><button type="button" data-nudge="p+" aria-label="More power">+</button></div>
-      <button type="button" class="go" data-act="launch">Launch</button>
+      <button type="button" class="go" data-act="launch" aria-label="Launch"><span class="long">Launch</span><span class="short">Go</span></button>
     </div>
     <div class="bar-fly" data-b="fly" hidden>
       <button type="button" class="pill" data-act="retry" title="Retry (R)">&#8634; Retry</button>
@@ -105,7 +105,7 @@ export function createUI(stage, { onAction, onNudge, onFast }) {
       void nRings
     },
     levels({ sectors, levels, sector }) {
-      const tabs = sectors.map((s, i) => `<button type="button" class="tab${i === sector ? ' on' : ''}" data-act="sector" data-arg="${i}">${i + 1}. ${esc(s.name)}</button>`).join('')
+      const tabs = sectors.map((s, i) => `<button type="button" class="tab${i === sector ? ' on' : ''}" data-act="sector" data-arg="${i}" aria-label="Sector ${i + 1}: ${esc(s.name)}"><span class="tlong">${i + 1}. ${esc(s.name)}</span><span class="tshort">Sector ${i + 1}</span></button>`).join('')
       const cells = levels.map((l) => `<button type="button" class="cell${l.open ? '' : ' locked'}" data-act="level" data-arg="${l.i}" ${l.open ? '' : 'disabled'} aria-label="${esc(l.name)}${l.open ? `, ${l.stars} of 3 stars` : ', locked'}">
           <span class="num">${l.no}</span><span class="nm">${esc(l.name)}</span>
           ${l.open ? `<span class="stars">${STAR(l.stars > 0)}${STAR(l.stars > 1)}${STAR(l.stars > 2)}</span><span class="bs">${l.best ? l.best : `par ${l.par}`}</span>` : LOCK}</button>`).join('')
@@ -129,7 +129,8 @@ export function createUI(stage, { onAction, onNudge, onFast }) {
           ${daily ? '' : btn('levels', 'All systems')}
           ${btn('title', 'Quit to title')}
         </div>
-        <p class="how"><kbd>R</kbd> retry &middot; hold <kbd>F</kbd> fast-forward &middot; <kbd>Space</kbd> launch, then puff &middot; <kbd>Shift</kbd> fine aim</p>`)
+        <p class="how keys"><kbd>R</kbd> retry &middot; hold <kbd>F</kbd> fast-forward &middot; <kbd>Space</kbd> launch, then puff &middot; <kbd>Shift</kbd> fine aim</p>
+        <p class="how touch">Pull back anywhere and let go. Changed your mind? Slide back to where you pressed, or touch with a second finger.</p>`)
     },
     result({ label, name, stars, title, quip, time, par, letters, total, landing, best, newBest, hasNext, nextOpen, rule }) {
       show('result', `
@@ -156,8 +157,7 @@ export function createUI(stage, { onAction, onNudge, onFast }) {
         <p class="stats">Streak ${streak} <i>&middot;</i> Best ${bestStreak}</p>
         <div class="btns col">
           ${btn('copy', 'Copy result', 'primary')}
-          ${btn('resume', 'Keep flying <small>for fun</small>')}
-          ${btn('title', 'Back to title', 'small')}
+          <div class="btns pair">${btn('resume', 'Keep flying <small>for fun</small>')}${btn('title', 'Back to title', 'small')}</div>
         </div>
         <div data-talk></div>`)
       return overlay.querySelector('[data-talk]')

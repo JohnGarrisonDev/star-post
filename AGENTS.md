@@ -111,6 +111,12 @@ How it was tuned: rings and the dock never change a trajectory (only the dock en
 ## Player input (`kit/talk.js`)
 The hub's anonymous player-input widgets (copy of the kit, do not edit). `showDailyDone` calls `dailyTalk` into the `[data-talk]` slot `ui.dailyDone` returns, with `key` = the daily's date and `score` = `launch * 1000 + flight tenths` (both capped at 999), so lower is better and ties on launches go to the quicker flight, the same order as the daily's own rule. API board `delivery`, the default. Boot calls `tellUs` into `#tell-us`. Both stay hidden when the API (`/api/v1/`) is unreachable.
 
+## Phones and full screen
+- `wireChrome({ stage })` (kit) gives native full screen or the iPhone focus mode; both set `.stage.is-full`. `src/game.css` pads the HUD and bar with `env(safe-area-inset-*)` there and keeps the HUD clear of the kit's exit button; it also sizes the kit's "Play full screen" icon (missing from `kit/shell.css`).
+- `fit()` in main.js re-fits the canvas and measures the HUD and bar against the canvas rect into `R.insets` (the canvas is inset by the safe areas in full screen). It runs on stage resize, so turning the phone re-lays out the field.
+- Pointer: the dead zone is 8 px for a mouse and 20 px for touch; coming back inside it after a live pull sets `G.aimBack` ("Let go here to cancel"). A second pointer cancels the pull or the slow-motion puff; `pointercancel` and `lostpointercapture` cancel without firing.
+- `haptic()` on launch, crash and dock.
+
 ## Testing in a browser
 `?debug` exposes `window.__game`: `advance(seconds)` steps the game clock without animation frames, `goto(i)`, `daily()`, `aim(a10, p10)`, `solve()` (aims the full-delivery launch), `launch()`, `retry()`, `puff(dx, dy)`, `act(name, arg)` (same as pressing a UI button), `state()`.
 
